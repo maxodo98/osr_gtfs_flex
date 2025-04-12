@@ -445,7 +445,8 @@ std::vector<std::optional<path>> route(
       return r(get_dijkstra<bike<kElevationLowCost>>());
     case search_profile::kBikeElevationHigh:
       return r(get_dijkstra<bike<kElevationHighCost>>());
-    case search_profile::kCar: return r(get_dijkstra<car>());
+      case search_profile::kFlex: return r(get_dijkstra<car<true>>());
+    case search_profile::kCar: return r(get_dijkstra<car<false>>());
     case search_profile::kCarParking:
       return r(get_dijkstra<car_parking<false>>());
     case search_profile::kCarParkingWheelchair:
@@ -493,7 +494,9 @@ std::optional<path> route(ways const& w,
       return r(get_dijkstra<bike<kElevationLowCost>>());
     case search_profile::kBikeElevationHigh:
       return r(get_dijkstra<bike<kElevationHighCost>>());
-    case search_profile::kCar: return r(get_dijkstra<car>());
+    case search_profile::kFlex:
+      return r(get_dijkstra<car<true>>());
+    case search_profile::kCar: return r(get_dijkstra<car<false>>());
     case search_profile::kCarParking:
       return r(get_dijkstra<car_parking<false>>());
     case search_profile::kCarParkingWheelchair:
@@ -538,7 +541,8 @@ std::vector<std::optional<path>> route(
       return r(get_dijkstra<bike<kElevationLowCost>>());
     case search_profile::kBikeElevationHigh:
       return r(get_dijkstra<bike<kElevationHighCost>>());
-    case search_profile::kCar: return r(get_dijkstra<car>());
+    case search_profile::kFlex: return r(get_dijkstra<car<true>>());
+    case search_profile::kCar: return r(get_dijkstra<car<false>>());
     case search_profile::kCarParking:
       return r(get_dijkstra<car_parking<false>>());
     case search_profile::kCarParkingWheelchair:
@@ -581,7 +585,8 @@ std::optional<path> route(ways const& w,
       return r(get_dijkstra<bike<kElevationLowCost>>());
     case search_profile::kBikeElevationHigh:
       return r(get_dijkstra<bike<kElevationHighCost>>());
-    case search_profile::kCar: return r(get_dijkstra<car>());
+    case search_profile::kFlex: return r(get_dijkstra<car<true>>());
+    case search_profile::kCar: return r(get_dijkstra<car<false>>());
     case search_profile::kCarParking:
       return r(get_dijkstra<car_parking<false>>());
     case search_profile::kCarParkingWheelchair:

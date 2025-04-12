@@ -201,7 +201,8 @@ struct http_server::impl {
       case search_profile::kBikeElevationHigh:
         send_graph_response<bike<kElevationHighCost>>(req, cb, gj);
         break;
-      case search_profile::kCar: send_graph_response<car>(req, cb, gj); break;
+      case search_profile::kCar: send_graph_response<car<false>>(req, cb, gj); break;
+       case search_profile::kFlex: send_graph_response<car<true>>(req, cb, gj); break;
       case search_profile::kCarParking:
         send_graph_response<car_parking<false>>(req, cb, gj);
         break;
