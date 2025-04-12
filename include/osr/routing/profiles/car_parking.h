@@ -21,7 +21,7 @@ struct car_parking {
   using footp = foot<IsWheelchair>;
 
   static constexpr auto const kSwitchPenalty = cost_t{200U};
-  static constexpr auto const kMaxMatchDistance = car::kMaxMatchDistance;
+  static constexpr auto const kMaxMatchDistance = car<false>::kMaxMatchDistance;
 
   using key = node_idx_t;
 
@@ -197,7 +197,7 @@ struct car_parking {
     }
   };
 
-  static car::node to_car(node const n) {
+  static car<false>::node to_car(node const n) {
     return {.n_ = n.n_, .way_ = n.way_, .dir_ = n.dir_};
   }
 
@@ -205,7 +205,7 @@ struct car_parking {
     return {.n_ = n.n_, .lvl_ = n.lvl_};
   }
 
-  static node to_node(car::node const n, level_t const lvl) {
+  static node to_node(car<false>::node const n, level_t const lvl) {
     return {.n_ = n.n_,
             .type_ = node_type::kCar,
             .lvl_ = lvl,
@@ -228,7 +228,7 @@ struct car_parking {
                           Fn&& f) {
     footp::resolve_all(
         w, n, lvl, [&](footp::node const neighbor) { f(to_node(neighbor)); });
-    car::resolve_all(w, n, lvl, [&](car::node const neighbor) {
+    car<false>::resolve_all(w, n, lvl, [&](car<false>::node const neighbor) {
       auto const p = w.way_properties_[w.node_ways_[n][neighbor.way_]];
       auto const node_level = lvl == kNoLevel ? p.from_level() : lvl;
       f(to_node(neighbor, node_level));
@@ -259,9 +259,9 @@ struct car_parking {
     }
 
     if (n.is_car_node() || (kBwd && n.is_foot_node() && is_parking)) {
-      car::template adjacent<SearchDir, WithBlocked>(
+      car<false>::template adjacent<SearchDir, WithBlocked>(
           w, to_car(n), blocked, nullptr,
-          [&](car::node const neighbor, std::uint32_t const cost,
+          [&](car<false>::node const neighbor, std::uint32_t const cost,
               distance_t const dist, way_idx_t const way,
               std::uint16_t const from, std::uint16_t const to) {
             auto const way_prop = w.way_properties_[way];
@@ -281,9 +281,9 @@ struct car_parking {
                                  Fn&& f) {
     auto const way_properties = w.way_properties_[way];
     search_dir == direction::kForward
-        ? car::resolve_start_node(
+        ? car<false>::resolve_start_node(
               w, way, n, lvl, search_dir,
-              [&](car::node const cn) {
+              [&](car<false>::node const cn) {
                 auto const node_level =
                     lvl == kNoLevel ? way_properties.from_level() : lvl;
                 f(to_node(cn, node_level));
@@ -304,7 +304,7 @@ struct car_parking {
                       footp::is_dest_reachable(w, to_foot(n), way, way_dir,
                                                search_dir)
                 : n.is_car_node() &&
-                      car::is_dest_reachable(w, to_car(n), way, way_dir,
+                      car<false>::is_dest_reachable(w, to_car(n), way, way_dir,
                                              search_dir));
   }
 

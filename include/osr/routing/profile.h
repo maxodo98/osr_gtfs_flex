@@ -9,6 +9,7 @@ enum class search_profile : std::uint8_t {
   kFoot,
   kWheelchair,
   kBike,
+  kFlex,
   kCar,
   kCarParking,
   kCarParkingWheelchair,

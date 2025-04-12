@@ -14,6 +14,7 @@ namespace osr {
 
 struct sharing_data;
 
+template <bool Flex>
 struct car {
   static constexpr auto const kMaxMatchDistance = 200U;
   static constexpr auto const kUturnPenalty = cost_t{120U};
@@ -36,7 +37,7 @@ struct car {
 
     constexpr node_idx_t get_key() const noexcept { return n_; }
 
-    static constexpr mode get_mode() noexcept { return mode::kCar; }
+    static constexpr mode get_mode() noexcept { return Flex ? mode::kFlex : mode::kCar; }
 
     std::ostream& print(std::ostream& out, ways const& w) const {
       return out << "(node=" << w.node_to_osm_[n_] << ", dir=" << to_str(dir_)

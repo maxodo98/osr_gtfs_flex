@@ -44,8 +44,11 @@ match_t lookup::match(location const& query,
     case search_profile::kWheelchair:
       return match<foot<true>>(query, reverse, search_dir, max_match_distance,
                                blocked);
+    case search_profile::kFlex:
+      return match<car<true>>(query, reverse, search_dir, max_match_distance,
+                        blocked);
     case search_profile::kCar:
-      return match<car>(query, reverse, search_dir, max_match_distance,
+      return match<car<false>>(query, reverse, search_dir, max_match_distance,
                         blocked);
     case search_profile::kBike:
       return match<bike>(query, reverse, search_dir, max_match_distance,
