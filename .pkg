@@ -63,6 +63,6 @@
   branch=master
   commit=636c9861e8e7c119f3626d1e6c260603ab624516
 [net]
-  url=git@github.com:motis-project/net.git
+  url=git@github.com:maxodo98/net_test.git
   branch=master
-  commit=75611343512242c64a5b3f50f3a660a17298339d
+  commit=7e8e0b9e10d31101c227069a7d1ac5dacdbc0cef
