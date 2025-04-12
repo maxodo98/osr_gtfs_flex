@@ -28,11 +28,9 @@
 #include "tiles/osm/hybrid_node_idx.h"
 #include "tiles/osm/tmp_file.h"
 
-#include "osr/elevation_storage.h"
 #include "osr/extract/tags.h"
 #include "osr/lookup.h"
 #include "osr/platforms.h"
-#include "osr/preprocessing/elevation/provider.h"
 #include "osr/ways.h"
 
 namespace osm = osmium;
@@ -73,13 +71,13 @@ speed_limit get_speed_limit(tags const& t) {
         return t.name_.empty() ? get_speed_limit(80) : get_speed_limit(40);
       case cista::hash("primary_link"): return get_speed_limit(30);
       case cista::hash("secondary"):
-        return t.name_.empty() ? get_speed_limit(80) : get_speed_limit(60);
+        return t.name_.empty() ? get_speed_limit(75) : get_speed_limit(55);
       case cista::hash("secondary_link"): return get_speed_limit(25);
       case cista::hash("tertiary"):
         return t.name_.empty() ? get_speed_limit(70) : get_speed_limit(40);
       case cista::hash("tertiary_link"): return get_speed_limit(20);
-      case cista::hash("unclassified"): return get_speed_limit(40);
-      case cista::hash("residential"): return get_speed_limit(30);
+      case cista::hash("unclassified"): [[fallthrough]];
+      case cista::hash("residential"): return get_speed_limit(25);
       case cista::hash("living_street"): return get_speed_limit(10);
       case cista::hash("service"): return get_speed_limit(15);
       case cista::hash("track"): return get_speed_limit(12);
@@ -118,8 +116,6 @@ way_properties get_way_properties(tags const& t) {
   p.from_level_ = to_idx(from);
   p.to_level_ = to_idx(to);
   p.is_platform_ = t.is_platform_;
-  p.is_ramp_ = t.is_ramp_;
-  p.is_sidewalk_separate_ = t.sidewalk_separate_;
   return p;
 }
 
@@ -456,8 +452,7 @@ struct rel_ways_handler : public osm::handler::Handler {
 
 void extract(bool const with_platforms,
              fs::path const& in,
-             fs::path const& out,
-             fs::path const& elevation_dir) {
+             fs::path const& out) {
   auto ec = std::error_code{};
   fs::remove_all(out, ec);
   if (!fs::is_directory(out)) {
@@ -493,7 +488,7 @@ void extract(bool const with_platforms,
 
   w.node_way_counter_.reserve(12000000000);
   {  // Collect node coordinates.
-    pt->status("Load OSM / Coordinates").in_high(file_size).out_bounds(0, 15);
+    pt->status("Load OSM / Coordinates").in_high(file_size).out_bounds(0, 20);
 
     auto node_idx_builder = tiles::hybrid_node_idx_builder{node_idx};
 
@@ -511,12 +506,11 @@ void extract(bool const with_platforms,
 
   auto elevator_nodes = hash_map<osm_node_idx_t, level_bits_t>{};
   {  // Extract streets, places, and areas.
-    pt->status("Load OSM / Ways").in_high(file_size).out_bounds(15, 40);
+    pt->status("Load OSM / Ways").in_high(file_size).out_bounds(20, 50);
 
     auto h = way_handler{w, pl.get(), rel_ways, elevator_nodes};
     auto reader =
         osm_io::Reader{input_file, osm_eb::way, osmium::io::read_meta::no};
-
     oneapi::tbb::parallel_pipeline(
         std::thread::hardware_concurrency() * 4U,
         oneapi::tbb::make_filter<void, osm_mem::Buffer>(
@@ -529,15 +523,11 @@ void extract(bool const with_platforms,
               }
               return buf;
             }) &
-            oneapi::tbb::make_filter<osm_mem::Buffer, osm_mem::Buffer>(
-                oneapi::tbb::filter_mode::parallel,
-                [&](osm_mem::Buffer&& buf) {
-                  update_locations(node_idx, buf);
-                  return std::move(buf);
-                }) &
             oneapi::tbb::make_filter<osm_mem::Buffer, void>(
-                oneapi::tbb::filter_mode::serial_in_order,
-                [&](osm_mem::Buffer&& buf) { osm::apply(buf, h); }));
+                oneapi::tbb::filter_mode::parallel, [&](osm_mem::Buffer&& buf) {
+                  update_locations(node_idx, buf);
+                  osm::apply(buf, h);
+                }));
 
     pt->update(pt->in_high_);
     reader.close();
@@ -548,15 +538,6 @@ void extract(bool const with_platforms,
 
   w.connect_ways();
 
-  if (!elevation_dir.empty()) {
-    auto const provider =
-        osr::preprocessing::elevation::provider{elevation_dir};
-    if (provider.driver_count() > 0) {
-      auto elevations = elevation_storage{out, cista::mmap::protection::WRITE};
-      elevations.set_elevations(w, provider);
-    }
-  }
-
   auto r = std::vector<resolved_restriction>{};
   {
     pt->status("Load OSM / Node Properties")
@@ -565,10 +546,21 @@ void extract(bool const with_platforms,
     auto reader = osm_io::Reader{input_file, osm_eb::node | osm_eb::relation,
                                  osmium::io::read_meta::no};
     auto h = node_handler{w, pl.get(), r, elevator_nodes};
-    while (auto b = reader.read()) {
-      pt->update(reader.offset());
-      osm::apply(b, h);
-    }
+    oneapi::tbb::parallel_pipeline(
+        std::thread::hardware_concurrency() * 4U,
+        oneapi::tbb::make_filter<void, osm_mem::Buffer>(
+            oneapi::tbb::filter_mode::serial_in_order,
+            [&](oneapi::tbb::flow_control& fc) {
+              auto buf = reader.read();
+              pt->update(reader.offset());
+              if (!buf) {
+                fc.stop();
+              }
+              return buf;
+            }) &
+            oneapi::tbb::make_filter<osm_mem::Buffer, void>(
+                oneapi::tbb::filter_mode::parallel,
+                [&](osm_mem::Buffer&& buf) { osm::apply(buf, h); }));
 
     reader.close();
     pt->update(pt->in_high_);

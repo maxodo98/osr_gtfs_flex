@@ -6,7 +6,6 @@
 
 #include "utl/helpers/algorithm.h"
 
-#include "osr/elevation_storage.h"
 #include "osr/routing/mode.h"
 #include "osr/routing/route.h"
 #include "osr/ways.h"
@@ -15,7 +14,6 @@ namespace osr {
 
 struct sharing_data;
 
-template <bool Flex>
 struct car {
   static constexpr auto const kMaxMatchDistance = 200U;
   static constexpr auto const kUturnPenalty = cost_t{120U};
@@ -38,7 +36,7 @@ struct car {
 
     constexpr node_idx_t get_key() const noexcept { return n_; }
 
-    static constexpr mode get_mode() noexcept { return Flex ? mode::kFlex : mode::kCar; }
+    static constexpr mode get_mode() noexcept { return mode::kCar; }
 
     std::ostream& print(std::ostream& out, ways const& w) const {
       return out << "(node=" << w.node_to_osm_[n_] << ", dir=" << to_str(dir_)
@@ -166,7 +164,6 @@ struct car {
                        node const n,
                        bitvec<node_idx_t> const* blocked,
                        sharing_data const*,
-                       elevation_storage const*,
                        Fn&& fn) {
     auto way_pos = way_pos_t{0U};
     for (auto const [way, i] :
@@ -202,7 +199,7 @@ struct car {
         auto const cost = way_cost(target_way_prop, way_dir, dist) +
                           node_cost(target_node_prop) +
                           (is_u_turn ? kUturnPenalty : 0U);
-        fn(target, cost, dist, way, from, to, elevation_storage::elevation{});
+        fn(target, cost, dist, way, from, to);
       };
 
       if (i != 0U) {

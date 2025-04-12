@@ -55,9 +55,7 @@ struct way_properties {
   constexpr bool is_oneway_bike() const { return is_oneway_bike_; }
   constexpr bool is_elevator() const { return is_elevator_; }
   constexpr bool is_steps() const { return is_steps_; }
-  constexpr bool is_ramp() const { return is_ramp_; }
   constexpr bool is_parking() const { return is_parking_; }
-  constexpr bool is_sidewalk_separate() const { return is_sidewalk_separate_; }
   constexpr std::uint16_t max_speed_m_per_s() const {
     return to_meters_per_second(static_cast<speed_limit>(speed_limit_));
   }
@@ -95,12 +93,9 @@ struct way_properties {
 
   std::uint8_t is_platform_ : 1;  // only used during extract
   bool is_parking_ : 1;
-
-  bool is_ramp_ : 1;
-  bool is_sidewalk_separate_ : 1;
 };
 
-static_assert(sizeof(way_properties) == 4);
+static_assert(sizeof(way_properties) == 3);
 
 struct node_properties {
   constexpr bool is_car_accessible() const { return is_car_accessible_; }

@@ -10,7 +10,6 @@ enum class mode : std::uint8_t {
   kWheelchair,
   kBike,
   kCar,
-  kFlex
 };
 
 std::string_view to_str(mode);
