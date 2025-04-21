@@ -51,9 +51,11 @@ std::vector<std::vector<std::optional<path>>> route(
     cost_t const max,
     direction const dir,
     double const max_match_distance,
-    bitvec<node_idx_t> const* blocked,
-    sharing_data const* sharing,
-    std::function<bool(path const&)> const& do_reconstruct);
+    bitvec<node_idx_t> const* blocked = nullptr,
+    sharing_data const* sharing = nullptr,
+    std::function<bool(path const&)> const& do_reconstruct = [](path const&) {
+      return false;
+    });
 
 std::vector<std::optional<path>> route(
     ways const&,
