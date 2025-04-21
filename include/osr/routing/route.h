@@ -42,6 +42,19 @@ struct path {
 template <typename Profile>
 dijkstra<Profile>& get_dijkstra();
 
+std::vector<std::vector<std::optional<path>>> route(
+    ways const& w,
+    lookup const& l,
+    search_profile const profile,
+    std::vector<location> const& from,
+    std::vector<location> const& to,
+    cost_t const max,
+    direction const dir,
+    double const max_match_distance,
+    bitvec<node_idx_t> const* blocked,
+    sharing_data const* sharing,
+    std::function<bool(path const&)> const& do_reconstruct);
+
 std::vector<std::optional<path>> route(
     ways const&,
     lookup const&,

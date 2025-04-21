@@ -323,6 +323,79 @@ std::optional<path> route(ways const& w,
 }
 
 template <typename Profile>
+std::vector<std::vector<std::optional<path>>> route(
+    ways const& w,
+    dijkstra<Profile>& d,
+    std::vector<location> const& from,
+    std::vector<location> const& to,
+    std::vector<match_t> from_match,
+    std::vector<match_t> const& to_match,
+    cost_t const max,
+    direction const dir,
+    bitvec<node_idx_t> const* blocked,
+    sharing_data const* sharing,
+    std::function<bool(path const&)> const& do_reconstruct) {
+  auto complete_result = std::vector<std::vector<std::optional<path>>>{};
+  if (from_match.empty()) {
+    return complete_result;
+  }
+  complete_result.resize(from_match.size());
+
+  for (auto const& [f, f_match, result] : utl::zip(from, from_match, complete_result)) {
+    result.resize(to_match.size());
+
+    if (f_match.empty()) {
+      continue;
+    }
+    d.reset(max);
+    for (auto const& start : f_match) {
+      for (auto const* nc : {&start.left_, &start.right_}) {
+        if (nc->valid() && nc->cost_ < max) {
+          Profile::resolve_start_node(
+              *w.r_, start.way_, nc->node_, f.lvl_, dir, [&](auto const node)
+              {
+                auto label = typename Profile::label{node, nc->cost_};
+                label.track(label, *w.r_, start.way_, node.get_node());
+                d.add_start(w, label);
+              });
+        }
+      }
+
+      d.run(w, *w.r_, max, blocked, sharing, dir);
+
+      auto found = 0U;
+      for (auto const [m, t, r] : utl::zip(to_match, to, result)) {
+        if (r.has_value()) {
+          ++found;
+        } else if (auto const direct = try_direct(f, t); direct.has_value())
+        {
+          r = direct;
+        } else {
+          auto const c = best_candidate(w, d, t.lvl_, m, max, dir);
+          if (c.has_value()) {
+            auto [nc, wc, n, p] = *c;
+            d.cost_.at(n.get_key()).write(n, p);
+            if (do_reconstruct(p)) {
+              p = reconstruct<Profile>(w, blocked, sharing, d, start, *nc, n,
+                                       p.cost_, dir);
+              p.uses_elevator_ = true;
+            }
+            r = std::make_optional(p);
+            ++found;
+          }
+        }
+      }
+
+      if (found == result.size()) {
+        break;
+      }
+    }
+  }
+
+  return complete_result;
+}
+
+template <typename Profile>
 std::vector<std::optional<path>> route(
     ways const& w,
     dijkstra<Profile>& d,
@@ -335,63 +408,21 @@ std::vector<std::optional<path>> route(
     bitvec<node_idx_t> const* blocked,
     sharing_data const* sharing,
     std::function<bool(path const&)> const& do_reconstruct) {
-  auto result = std::vector<std::optional<path>>{};
-  result.resize(to_match.size());
+  auto const froms = std::vector{from};
+  auto const match = match_t(from_match.begin(),
+  from_match.end());
+  auto const from_matches = std::vector<match_t>{match};
 
-  if (from_match.empty()) {
-    return result;
-  }
-
-  d.reset(max);
-  for (auto const& start : from_match) {
-    for (auto const* nc : {&start.left_, &start.right_}) {
-      if (nc->valid() && nc->cost_ < max) {
-        Profile::resolve_start_node(
-            *w.r_, start.way_, nc->node_, from.lvl_, dir, [&](auto const node) {
-              auto label = typename Profile::label{node, nc->cost_};
-              label.track(label, *w.r_, start.way_, node.get_node());
-              d.add_start(w, label);
-            });
-      }
-    }
-
-    d.run(w, *w.r_, max, blocked, sharing, dir);
-
-    auto found = 0U;
-    for (auto const [m, t, r] : utl::zip(to_match, to, result)) {
-      if (r.has_value()) {
-        ++found;
-      } else if (auto const direct = try_direct(from, t); direct.has_value()) {
-        r = direct;
-      } else {
-        auto const c = best_candidate(w, d, t.lvl_, m, max, dir);
-        if (c.has_value()) {
-          auto [nc, wc, n, p] = *c;
-          d.cost_.at(n.get_key()).write(n, p);
-          if (do_reconstruct(p)) {
-            p = reconstruct<Profile>(w, blocked, sharing, d, start, *nc, n,
-                                     p.cost_, dir);
-            p.uses_elevator_ = true;
-          }
-          r = std::make_optional(p);
-          ++found;
-        }
-      }
-    }
-
-    if (found == result.size()) {
-      return result;
-    }
-  }
-
-  return result;
+  auto const result = route(w, d, froms, to, from_matches, to_match, max,
+  dir, blocked, sharing, do_reconstruct);
+  return result[0];
 }
 
-std::vector<std::optional<path>> route(
+std::vector<std::vector<std::optional<path>>> route(
     ways const& w,
     lookup const& l,
     search_profile const profile,
-    location const& from,
+    std::vector<location> const& from,
     std::vector<location> const& to,
     cost_t const max,
     direction const dir,
@@ -400,18 +431,19 @@ std::vector<std::optional<path>> route(
     sharing_data const* sharing,
     std::function<bool(path const&)> const& do_reconstruct) {
   auto const r = [&]<typename Profile>(
-                     dijkstra<Profile>& d) -> std::vector<std::optional<path>> {
-    auto const from_match =
-        l.match<Profile>(from, false, dir, max_match_distance, blocked);
-    if (from_match.empty()) {
-      return std::vector<std::optional<path>>(to.size());
-    }
-    auto const to_match = utl::to_vec(to, [&](auto&& x) {
-      return l.match<Profile>(x, true, dir, max_match_distance, blocked);
-    });
-    return route(w, d, from, to, from_match, to_match, max, dir, blocked,
-                 sharing, do_reconstruct);
-  };
+                     dijkstra<Profile>& d) -> std::vector<std::vector<std::optional<path>>> {
+                       auto const from_match = utl::to_vec(from, [&](auto&& x) {
+                         return l.match<Profile>(x, true, dir, max_match_distance, blocked);
+                       });
+                       if (from_match.empty()) {
+                         return {};
+                       }
+                       auto const to_match = utl::to_vec(to, [&](auto&& x) {
+                         return l.match<Profile>(x, true, dir, max_match_distance, blocked);
+                       });
+                       return route(w, d, from, to, from_match, to_match, max, dir, blocked,
+                                    sharing, do_reconstruct);
+                     };
 
   switch (profile) {
     case search_profile::kFoot:
@@ -429,6 +461,23 @@ std::vector<std::optional<path>> route(
   }
 
   throw utl::fail("not implemented");
+}
+
+std::vector<std::optional<path>> route(
+    ways const& w,
+    lookup const& l,
+    search_profile const profile,
+    location const& from,
+    std::vector<location> const& to,
+    cost_t const max,
+    direction const dir,
+    double const max_match_distance,
+    bitvec<node_idx_t> const* blocked,
+    sharing_data const* sharing,
+    std::function<bool(path const&)> const& do_reconstruct) {
+  auto froms = std::vector{from};
+  auto const result = route(w, l, profile, froms, to, max, dir, max_match_distance, blocked, sharing, do_reconstruct);
+  return result[0];
 }
 
 std::optional<path> route(ways const& w,
