@@ -10,6 +10,7 @@ std::string_view to_str(mode const m) {
   switch (m) {
     case mode::kFoot: return "foot";
     case mode::kWheelchair: return "wheelchair";
+    case mode::kFlex: return "flex";
     case mode::kCar: return "car";
     case mode::kBike: return "bike";
   }
