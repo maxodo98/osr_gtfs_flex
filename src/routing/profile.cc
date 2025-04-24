@@ -11,6 +11,7 @@ search_profile to_profile(std::string_view s) {
     case cista::hash("foot"): return search_profile::kFoot;
     case cista::hash("wheelchair"): return search_profile::kWheelchair;
     case cista::hash("bike"): return search_profile::kBike;
+    case cista::hash("flex"): return search_profile::kFlex;
     case cista::hash("car"): return search_profile::kCar;
     case cista::hash("car_parking"): return search_profile::kCarParking;
     case cista::hash("car_parking_wheelchair"):
@@ -24,6 +25,7 @@ std::string_view to_str(search_profile const p) {
   switch (p) {
     case search_profile::kFoot: return "foot";
     case search_profile::kWheelchair: return "wheelchair";
+    case search_profile::kFlex: return "flex";
     case search_profile::kCar: return "car";
     case search_profile::kBike: return "bike";
     case search_profile::kCarParking: return "car_parking";
